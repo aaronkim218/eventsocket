@@ -1,6 +1,6 @@
 package hubsocket
 
 type BroadcastMessage[T any] struct {
-	client    *Client[T]
-	wsMessage WsMessage
+	Client    *Client[T]
+	WsMessage WsMessage
 }

@@ -16,7 +16,7 @@ type activeRoomConfig[T any] struct {
 type ActiveRoom[T any] struct {
 	RoomId         uuid.UUID
 	Clients        map[*Client[T]]struct{}
-	mu             sync.RWMutex
+	Mu             sync.RWMutex
 	broadcast      chan BroadcastMessage[T]
 	logger         *slog.Logger
 	pluginRegistry *PluginRegistry[T]
@@ -53,8 +53,8 @@ func (ar *ActiveRoom[T]) handleReadClient(client *Client[T]) {
 		}
 
 		ar.broadcast <- BroadcastMessage[T]{
-			client:    client,
-			wsMessage: wsm,
+			Client:    client,
+			WsMessage: wsm,
 		}
 	}
 }
@@ -63,16 +63,16 @@ func (ar *ActiveRoom[T]) handleBroadcastMessage(msg BroadcastMessage[T]) {
 	if err := ar.pluginRegistry.handleBroadcastMessage(ar, msg); err != nil {
 		ar.logger.Error("Plugin failed to handle message",
 			slog.String("err", err.Error()),
-			slog.String("type", string(msg.wsMessage.Type)),
-			slog.Any("payload", msg.wsMessage.Payload),
+			slog.String("type", string(msg.WsMessage.Type)),
+			slog.Any("payload", msg.WsMessage.Payload),
 		)
 	}
 }
 
 func (ar *ActiveRoom[T]) handleClientJoin(client *Client[T]) {
-	ar.mu.Lock()
+	ar.Mu.Lock()
 	ar.Clients[client] = struct{}{}
-	ar.mu.Unlock()
+	ar.Mu.Unlock()
 	go ar.handleReadClient(client)
 
 	if err := ar.pluginRegistry.handleClientJoin(ar, client); err != nil {
@@ -81,14 +81,14 @@ func (ar *ActiveRoom[T]) handleClientJoin(client *Client[T]) {
 }
 
 func (ar *ActiveRoom[T]) handleClientLeave(client *Client[T]) {
-	ar.mu.Lock()
+	ar.Mu.Lock()
 	delete(ar.Clients, client)
-	ar.mu.Unlock()
+	ar.Mu.Unlock()
 
 	if err := ar.pluginRegistry.handleClientLeave(ar, client); err != nil {
 		ar.logger.Error("Plugin failed to handle message", slog.String("err", err.Error()))
 	}
 
-	close(client.write)
+	close(client.Write)
 	client.done <- struct{}{}
 }

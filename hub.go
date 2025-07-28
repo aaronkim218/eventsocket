@@ -68,13 +68,13 @@ func (h *Hub[T]) cleanup(interval time.Duration) {
 	for range ticker.C {
 		h.mu.Lock()
 		for roomId, room := range h.activeRooms {
-			room.mu.RLock()
+			room.Mu.RLock()
 			if len(room.Clients) == 0 {
 				delete(h.activeRooms, roomId)
 				close(room.broadcast)
 				h.logger.Info("Deleted room", slog.String("id", roomId.String()))
 			}
-			room.mu.RUnlock()
+			room.Mu.RUnlock()
 		}
 		h.mu.Unlock()
 	}

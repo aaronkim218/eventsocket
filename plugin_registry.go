@@ -46,9 +46,9 @@ func (pr *PluginRegistry[T]) handleClientJoin(room *ActiveRoom[T], client *Clien
 }
 
 func (pr *PluginRegistry[T]) handleBroadcastMessage(room *ActiveRoom[T], msg BroadcastMessage[T]) error {
-	plugins, ok := pr.broadcastMessagePlugins[msg.wsMessage.Type]
+	plugins, ok := pr.broadcastMessagePlugins[msg.WsMessage.Type]
 	if !ok {
-		return fmt.Errorf("no plugins registered for message type: %s", string(msg.wsMessage.Type))
+		return fmt.Errorf("no plugins registered for message type: %s", string(msg.WsMessage.Type))
 	}
 
 	var joinedErr error

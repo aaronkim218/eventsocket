@@ -14,7 +14,7 @@ type ClientConfig[T any] struct {
 type Client[T any] struct {
 	Metadata T
 	conn     *websocket.Conn
-	write    chan WsMessage
+	Write    chan WsMessage
 	done     chan struct{}
 }
 
@@ -22,7 +22,7 @@ func NewClient[T any](cfg *ClientConfig[T]) *Client[T] {
 	c := &Client[T]{
 		Metadata: cfg.Metadata,
 		conn:     cfg.Conn,
-		write:    make(chan WsMessage),
+		Write:    make(chan WsMessage),
 		done:     make(chan struct{}),
 	}
 
@@ -36,7 +36,7 @@ func (c *Client[T]) Done() <-chan struct{} {
 }
 
 func (c *Client[T]) handleWriteClient() {
-	for wsm := range c.write {
+	for wsm := range c.Write {
 		if err := c.conn.WriteJSON(wsm); err != nil {
 			slog.Error("Error writing message to client. closing connection", slog.String("err", err.Error()))
 			c.closeConn()
