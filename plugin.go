@@ -1,4 +1,4 @@
-package hub
+package hubsocket
 
 type ClientJoinPlugin[T any] interface {
 	HandleClientJoin(*ActiveRoom[T], *Client[T]) error

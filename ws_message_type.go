@@ -1,3 +1,3 @@
-package hub
+package hubsocket
 
 type WsMessageType string

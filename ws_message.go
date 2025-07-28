@@ -1,4 +1,4 @@
-package hub
+package hubsocket
 
 import (
 	go_json "github.com/goccy/go-json"

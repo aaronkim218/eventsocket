@@ -1,4 +1,4 @@
-package hub
+package hubsocket
 
 type BroadcastMessage[T any] struct {
 	client    *Client[T]

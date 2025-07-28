@@ -1,4 +1,4 @@
-package hub
+package hubsocket
 
 import (
 	"log/slog"
