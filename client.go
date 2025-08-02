@@ -5,6 +5,7 @@ import (
 )
 
 type ClientConfig struct {
+	ID          string
 	Conn        Conn
 	Eventsocket *Eventsocket
 }
@@ -22,6 +23,7 @@ type Client struct {
 
 func NewClient(cfg *ClientConfig) *Client {
 	c := &Client{
+		id:              cfg.ID,
 		conn:            cfg.Conn,
 		eventsocket:     cfg.Eventsocket,
 		messageHandlers: make(map[string]MessageHandler),

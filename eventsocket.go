@@ -4,32 +4,64 @@ import (
 	"sync"
 )
 
-type Eventsocket struct {
-	clientManager *clientManager
-	roomManager   *roomManager
-	mu            sync.Mutex
+type Config struct {
+	OnCreateClient CreateClientHandler
+	OnRemoveClient RemoveClientHandler
+	OnJoinRoom     JoinRoomHandler
+	OnLeaveRoom    LeaveRoomHandler
+	OnNewRoom      NewRoomHandler
+	OnDeleteRoom   DeleteRoomHandler
 }
 
-func New() *Eventsocket {
+type Eventsocket struct {
+	clientManager  *clientManager
+	roomManager    *roomManager
+	mu             sync.Mutex
+	onCreateClient CreateClientHandler
+	onRemoveClient RemoveClientHandler
+	onJoinRoom     JoinRoomHandler
+	onLeaveRoom    LeaveRoomHandler
+	onNewRoom      NewRoomHandler
+	onDeleteRoom   DeleteRoomHandler
+}
+
+func New(cfg *Config) *Eventsocket {
 	return &Eventsocket{
-		clientManager: newClientManager(),
-		roomManager:   newRoomManager(),
+		clientManager:  newClientManager(),
+		roomManager:    newRoomManager(),
+		onCreateClient: cfg.OnCreateClient,
+		onRemoveClient: cfg.OnRemoveClient,
+		onJoinRoom:     cfg.OnJoinRoom,
+		onLeaveRoom:    cfg.OnLeaveRoom,
+		onNewRoom:      cfg.OnNewRoom,
+		onDeleteRoom:   cfg.OnDeleteRoom,
 	}
 }
 
 type CreateClientConfig struct {
+	ID   string
 	Conn Conn
 }
 
-func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) *Client {
+func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) (*Client, error) {
+	if _, exists := es.clientManager.getClient(cfg.ID); exists {
+		return nil, ErrClientExists
+	}
+
 	clientCfg := &ClientConfig{
+		ID:          cfg.ID,
 		Conn:        cfg.Conn,
 		Eventsocket: es,
 	}
 
 	client := NewClient(clientCfg)
 	es.clientManager.addClient(client)
-	return client
+
+	if es.onCreateClient != nil {
+		es.onCreateClient(client)
+	}
+
+	return client, nil
 }
 
 func (es *Eventsocket) RemoveClient(clientID string) {
@@ -44,6 +76,10 @@ func (es *Eventsocket) RemoveClient(clientID string) {
 	es.clientManager.removeClient(clientID)
 	es.roomManager.disconnectClient(clientID)
 	client.disconnect()
+
+	if es.onRemoveClient != nil {
+		es.onRemoveClient(clientID)
+	}
 }
 
 func (es *Eventsocket) AddClientToRoom(roomID string, clientID string) error {
@@ -55,13 +91,29 @@ func (es *Eventsocket) AddClientToRoom(roomID string, clientID string) error {
 		return ErrClientNotFound
 	}
 
-	es.roomManager.addClientToRoom(roomID, client)
+	roomCreated := es.roomManager.addClientToRoom(roomID, client)
+
+	if roomCreated && es.onNewRoom != nil {
+		es.onNewRoom(roomID)
+	}
+
+	if es.onJoinRoom != nil {
+		es.onJoinRoom(roomID, clientID)
+	}
 
 	return nil
 }
 
 func (es *Eventsocket) RemoveClientFromRoom(roomID string, clientID string) {
-	es.roomManager.removeClientFromRoom(roomID, clientID)
+	roomDeleted := es.roomManager.removeClientFromRoom(roomID, clientID)
+
+	if es.onLeaveRoom != nil {
+		es.onLeaveRoom(roomID, clientID)
+	}
+
+	if roomDeleted && es.onDeleteRoom != nil {
+		es.onDeleteRoom(roomID)
+	}
 }
 
 func (es *Eventsocket) BroadcastToAll(msg Message) {

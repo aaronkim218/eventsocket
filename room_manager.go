@@ -15,7 +15,8 @@ func newRoomManager() *roomManager {
 	}
 }
 
-func (rm *roomManager) addClientToRoom(roomID string, client *Client) {
+// returns true if room was created
+func (rm *roomManager) addClientToRoom(roomID string, client *Client) bool {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
@@ -26,21 +27,27 @@ func (rm *roomManager) addClientToRoom(roomID string, client *Client) {
 	}
 
 	room.addClient(client)
+
+	return !exists
 }
 
-func (rm *roomManager) removeClientFromRoom(roomID string, clientID string) {
+// returns true if room was deleted
+func (rm *roomManager) removeClientFromRoom(roomID string, clientID string) bool {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
 	room, exists := rm.rooms[roomID]
 	if !exists {
-		return
+		return false
 	}
 
 	room.removeClient(clientID)
 	if len(room.getClients()) == 0 {
 		delete(rm.rooms, roomID)
+		return true
 	}
+
+	return false
 }
 
 // TODO: optimize
