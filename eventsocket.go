@@ -48,13 +48,13 @@ func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) (*Client, error) {
 		return nil, ErrClientExists
 	}
 
-	clientCfg := &ClientConfig{
+	clientCfg := &clientConfig{
 		ID:          cfg.ID,
 		Conn:        cfg.Conn,
 		Eventsocket: es,
 	}
 
-	client := NewClient(clientCfg)
+	client := newClient(clientCfg)
 	es.clientManager.addClient(client)
 
 	if es.onCreateClient != nil {

@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type ClientConfig struct {
+type clientConfig struct {
 	ID          string
 	Conn        Conn
 	Eventsocket *Eventsocket
@@ -21,7 +21,7 @@ type Client struct {
 	outgoing        chan Message
 }
 
-func NewClient(cfg *ClientConfig) *Client {
+func newClient(cfg *clientConfig) *Client {
 	c := &Client{
 		id:              cfg.ID,
 		conn:            cfg.Conn,
