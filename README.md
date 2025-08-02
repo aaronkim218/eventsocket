@@ -1,1 +1,1 @@
-Event-driven, room-based WebSocket management library
+Zero-dependency, event-driven, room-based WebSocket management library
