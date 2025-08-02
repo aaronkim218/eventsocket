@@ -1,11 +1,8 @@
 package eventsocket
 
 import (
-	"errors"
 	"sync"
 )
-
-var ErrClientNotFound = errors.New("client not found")
 
 type room struct {
 	clients map[string]*Client

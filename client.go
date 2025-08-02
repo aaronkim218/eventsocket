@@ -2,18 +2,16 @@ package eventsocket
 
 import (
 	"sync"
-
-	"github.com/gofiber/contrib/websocket"
 )
 
 type ClientConfig struct {
-	Conn        *websocket.Conn
+	Conn        Conn
 	Eventsocket *Eventsocket
 }
 
 type Client struct {
 	id              string
-	conn            *websocket.Conn
+	conn            Conn
 	eventsocket     *Eventsocket
 	mu              sync.RWMutex
 	once            sync.Once

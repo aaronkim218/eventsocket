@@ -2,8 +2,6 @@ package eventsocket
 
 import (
 	"sync"
-
-	"github.com/gofiber/contrib/websocket"
 )
 
 type Eventsocket struct {
@@ -20,7 +18,7 @@ func New() *Eventsocket {
 }
 
 type CreateClientConfig struct {
-	Conn *websocket.Conn
+	Conn Conn
 }
 
 func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) *Client {

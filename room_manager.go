@@ -1,11 +1,8 @@
 package eventsocket
 
 import (
-	"errors"
 	"sync"
 )
-
-var ErrRoomNotFound = errors.New("room not found")
 
 type roomManager struct {
 	rooms map[string]*room
