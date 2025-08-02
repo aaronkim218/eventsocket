@@ -32,19 +32,18 @@ func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) *Client {
 	return client
 }
 
-func (es *Eventsocket) RemoveClient(clientID string) error {
+func (es *Eventsocket) RemoveClient(clientID string) {
 	es.mu.Lock()
 	defer es.mu.Unlock()
 
 	client, exists := es.clientManager.getClient(clientID)
 	if !exists {
-		return ErrClientNotFound
+		return
 	}
 
 	es.clientManager.removeClient(clientID)
 	es.roomManager.disconnectClient(clientID)
 	client.disconnect()
-	return nil
 }
 
 func (es *Eventsocket) AddClientToRoom(roomID string, clientID string) error {
