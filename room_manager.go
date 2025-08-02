@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+var ErrRoomNotFound = errors.New("room not found")
+
 type roomManager struct {
 	rooms map[string]*room
 	mu    sync.RWMutex
@@ -57,16 +59,17 @@ func (rm *roomManager) disconnectClient(clientID string) {
 	}
 }
 
-func (rm *roomManager) broadcastToRoom(roomID string, msg Message) {
+func (rm *roomManager) broadcastToRoom(roomID string, msg Message) error {
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
 
 	room, exists := rm.rooms[roomID]
 	if !exists {
-		return // TODO: return error?
+		return ErrRoomNotFound
 	}
 
 	room.broadcast(msg)
+	return nil
 }
 
 func (rm *roomManager) broadcastToRoomExcept(roomID string, clientID string, msg Message) error {
@@ -75,7 +78,7 @@ func (rm *roomManager) broadcastToRoomExcept(roomID string, clientID string, msg
 
 	room, exists := rm.rooms[roomID]
 	if !exists {
-		return errors.New("room not found")
+		return ErrRoomNotFound
 	}
 
 	return room.broadcastExcept(clientID, msg)

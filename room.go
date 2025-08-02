@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+var ErrClientNotFound = errors.New("client not found")
+
 type room struct {
 	clients map[string]*Client
 	mu      sync.RWMutex
@@ -54,7 +56,7 @@ func (r *room) broadcastExcept(clientID string, msg Message) error {
 
 	_, exists := r.clients[clientID]
 	if !exists {
-		return errors.New("client not found in room")
+		return ErrClientNotFound
 	}
 
 	for id, c := range r.clients {

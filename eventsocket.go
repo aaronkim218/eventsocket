@@ -1,6 +1,10 @@
 package eventsocket
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/gofiber/contrib/websocket"
+)
 
 type Eventsocket struct {
 	clientManager *clientManager
@@ -15,35 +19,48 @@ func New() *Eventsocket {
 	}
 }
 
-func (es *Eventsocket) AddClient(client *Client) {
-	es.clientManager.addClient(client)
+type CreateClientConfig struct {
+	Conn *websocket.Conn
 }
 
-func (es *Eventsocket) RemoveClient(clientID string) {
+func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) *Client {
+	clientCfg := &ClientConfig{
+		Conn:        cfg.Conn,
+		Eventsocket: es,
+	}
+
+	client := NewClient(clientCfg)
+	es.clientManager.addClient(client)
+	return client
+}
+
+func (es *Eventsocket) RemoveClient(clientID string) error {
 	es.mu.Lock()
 	defer es.mu.Unlock()
 
 	client, exists := es.clientManager.getClient(clientID)
 	if !exists {
-		// TODO: return error?
-		return
+		return ErrClientNotFound
 	}
 
 	es.clientManager.removeClient(clientID)
 	es.roomManager.disconnectClient(clientID)
 	client.disconnect()
+	return nil
 }
 
-func (es *Eventsocket) AddClientToRoom(roomID string, clientID string) {
+func (es *Eventsocket) AddClientToRoom(roomID string, clientID string) error {
 	es.mu.Lock()
 	defer es.mu.Unlock()
 
 	client, exists := es.clientManager.getClient(clientID)
 	if !exists {
-		return // TODO: return error?
+		return ErrClientNotFound
 	}
 
 	es.roomManager.addClientToRoom(roomID, client)
+
+	return nil
 }
 
 func (es *Eventsocket) RemoveClientFromRoom(roomID string, clientID string) {
@@ -54,8 +71,8 @@ func (es *Eventsocket) BroadcastToAll(msg Message) {
 	es.clientManager.broadcast(msg)
 }
 
-func (es *Eventsocket) BroadcastToRoom(roomID string, msg Message) {
-	es.roomManager.broadcastToRoom(roomID, msg)
+func (es *Eventsocket) BroadcastToRoom(roomID string, msg Message) error {
+	return es.roomManager.broadcastToRoom(roomID, msg)
 }
 
 func (es *Eventsocket) BroadcastToRoomExcept(roomID string, clientID string, msg Message) error {
