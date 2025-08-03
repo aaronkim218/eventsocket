@@ -42,7 +42,7 @@ func (rm *roomManager) removeClientFromRoom(roomID string, clientID string) bool
 	}
 
 	room.removeClient(clientID)
-	if len(room.getClients()) == 0 {
+	if room.size() == 0 {
 		delete(rm.rooms, roomID)
 		return true
 	}
@@ -50,17 +50,20 @@ func (rm *roomManager) removeClientFromRoom(roomID string, clientID string) bool
 	return false
 }
 
-// TODO: optimize
-func (rm *roomManager) disconnectClient(clientID string) {
+func (rm *roomManager) disconnectClient(clientID string) []string {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
+	deletedRooms := make([]string, 0)
 	for id, room := range rm.rooms {
 		room.removeClient(clientID)
-		if len(room.getClients()) == 0 {
+		if room.size() == 0 {
 			delete(rm.rooms, id)
+			deletedRooms = append(deletedRooms, id)
 		}
 	}
+
+	return deletedRooms
 }
 
 func (rm *roomManager) broadcastToRoom(roomID string, msg Message) error {

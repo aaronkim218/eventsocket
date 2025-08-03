@@ -27,15 +27,10 @@ func (r *room) removeClient(clientID string) {
 	r.mu.Unlock()
 }
 
-func (r *room) getClients() []*Client {
+func (r *room) size() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-
-	clients := make([]*Client, 0, len(r.clients))
-	for _, client := range r.clients {
-		clients = append(clients, client)
-	}
-	return clients
+	return len(r.clients)
 }
 
 func (r *room) broadcast(msg Message) {
