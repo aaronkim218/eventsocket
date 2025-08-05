@@ -41,3 +41,17 @@ func (cm *clientManager) broadcast(msg Message) {
 		client.sendMessage(msg)
 	}
 }
+
+func (cm *clientManager) broadcastToClient(clientID string, msg Message) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	client, ok := cm.clients[clientID]
+	if !ok {
+		return ErrClientNotFound
+	}
+
+	client.sendMessage(msg)
+
+	return nil
+}

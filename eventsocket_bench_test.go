@@ -47,7 +47,7 @@ func (m *mockConn) Close() error {
 }
 
 func BenchmarkClientCreation(b *testing.B) {
-	es := eventsocket.New(&eventsocket.Config{})
+	es := eventsocket.New()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		cfg := &eventsocket.CreateClientConfig{
@@ -62,7 +62,7 @@ func BenchmarkClientCreation(b *testing.B) {
 }
 
 func BenchmarkClientCreationParallel(b *testing.B) {
-	es := eventsocket.New(&eventsocket.Config{})
+	es := eventsocket.New()
 	var counter int64
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -80,7 +80,7 @@ func BenchmarkClientCreationParallel(b *testing.B) {
 }
 
 func BenchmarkClientCreationWithMessageHandlers(b *testing.B) {
-	es := eventsocket.New(&eventsocket.Config{})
+	es := eventsocket.New()
 
 	handler1 := func(data json.RawMessage) {}
 	handler2 := func(data json.RawMessage) {}
@@ -104,7 +104,7 @@ func BenchmarkClientCreationWithMessageHandlers(b *testing.B) {
 }
 
 func BenchmarkClientRemoval(b *testing.B) {
-	es := eventsocket.New(&eventsocket.Config{})
+	es := eventsocket.New()
 
 	clients := make([]*eventsocket.Client, b.N)
 	for i := 0; i < b.N; i++ {
@@ -126,7 +126,7 @@ func BenchmarkClientRemoval(b *testing.B) {
 }
 
 func BenchmarkBroadcastToAll(b *testing.B) {
-	es := eventsocket.New(&eventsocket.Config{})
+	es := eventsocket.New()
 
 	numClients := 1000
 	for i := 0; i < numClients; i++ {
@@ -155,7 +155,7 @@ func BenchmarkBroadcastToRoom(b *testing.B) {
 	roomSizes := []int{10, 100, 1000}
 	for _, size := range roomSizes {
 		b.Run(fmt.Sprintf("RoomSize-%d", size), func(b *testing.B) {
-			es := eventsocket.New(&eventsocket.Config{})
+			es := eventsocket.New()
 			roomID := "test-room"
 
 			for i := 0; i < size; i++ {
@@ -184,7 +184,7 @@ func BenchmarkBroadcastToRoom(b *testing.B) {
 }
 
 func BenchmarkRoomOperationsAtScale(b *testing.B) {
-	es := eventsocket.New(&eventsocket.Config{})
+	es := eventsocket.New()
 
 	numClients := 10000
 	clientIDs := make([]string, numClients)
