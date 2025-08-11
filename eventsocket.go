@@ -63,7 +63,11 @@ func (es *Eventsocket) RemoveClient(clientID string) {
 	}
 
 	es.clientManager.removeClient(clientID)
-	deletedRoomIDs := es.roomManager.disconnectClient(clientID)
+	deletedRoomIDs, roomsLeftIDs := es.roomManager.disconnectClient(clientID)
+
+	for _, roomID := range roomsLeftIDs {
+		es.triggerLeaveRoom(roomID, clientID)
+	}
 
 	for _, roomID := range deletedRoomIDs {
 		es.triggerDeleteRoom(roomID)

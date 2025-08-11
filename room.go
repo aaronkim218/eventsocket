@@ -21,10 +21,13 @@ func (r *room) addClient(client *Client) {
 	r.mu.Unlock()
 }
 
-func (r *room) removeClient(clientID string) {
+// returns true if client was a member and removed from the room
+func (r *room) removeClient(clientID string) bool {
 	r.mu.Lock()
+	_, ok := r.clients[clientID]
 	delete(r.clients, clientID)
 	r.mu.Unlock()
+	return ok
 }
 
 func (r *room) size() int {

@@ -50,20 +50,26 @@ func (rm *roomManager) removeClientFromRoom(roomID string, clientID string) bool
 	return false
 }
 
-func (rm *roomManager) disconnectClient(clientID string) []string {
+// returns 2 slices. first indicates ids of rooms that were deleted. second indicates rooms that client left as a result of disconnecting
+func (rm *roomManager) disconnectClient(clientID string) ([]string, []string) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
 	deletedRooms := make([]string, 0)
+	roomsLeft := make([]string, 0)
 	for id, room := range rm.rooms {
-		room.removeClient(clientID)
+		wasMember := room.removeClient(clientID)
+		if wasMember {
+			roomsLeft = append(roomsLeft, id)
+		}
+
 		if room.size() == 0 {
 			delete(rm.rooms, id)
 			deletedRooms = append(deletedRooms, id)
 		}
 	}
 
-	return deletedRooms
+	return deletedRooms, roomsLeft
 }
 
 func (rm *roomManager) broadcastToRoom(roomID string, msg Message) error {
