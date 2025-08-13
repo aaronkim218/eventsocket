@@ -19,6 +19,7 @@ type Client struct {
 	disconnected    bool
 	messageHandlers map[string]MessageHandler
 	outgoing        chan Message
+	done            chan struct{}
 }
 
 func newClient(cfg *clientConfig) *Client {
@@ -28,6 +29,7 @@ func newClient(cfg *clientConfig) *Client {
 		eventsocket:     cfg.Eventsocket,
 		messageHandlers: make(map[string]MessageHandler),
 		outgoing:        make(chan Message),
+		done:            make(chan struct{}),
 	}
 
 	go c.read()
@@ -64,6 +66,7 @@ func (c *Client) disconnect() {
 
 		c.disconnected = true
 		close(c.outgoing)
+		close(c.done)
 		_ = c.conn.Close()
 	}))
 }
@@ -99,4 +102,8 @@ func (c *Client) handleMessage(msg Message) {
 
 func (c *Client) ID() string {
 	return c.id
+}
+
+func (c *Client) Done() <-chan struct{} {
+	return c.done
 }

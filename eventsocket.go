@@ -17,7 +17,7 @@ type Eventsocket struct {
 }
 
 func New() *Eventsocket {
-	return &Eventsocket{
+	es := &Eventsocket{
 		clientManager:        newClientManager(),
 		roomManager:          newRoomManager(),
 		createClientHandlers: make(map[string]CreateClientHandler),
@@ -27,6 +27,8 @@ func New() *Eventsocket {
 		newRoomHandlers:      make(map[string]NewRoomHandler),
 		deleteRoomHandlers:   make(map[string]DeleteRoomHandler),
 	}
+
+	return es
 }
 
 type CreateClientConfig struct {
@@ -46,6 +48,7 @@ func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) (*Client, error) {
 	}
 
 	client := newClient(clientCfg)
+
 	es.clientManager.addClient(client)
 
 	es.triggerCreateClient(client)
@@ -55,7 +58,6 @@ func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) (*Client, error) {
 
 func (es *Eventsocket) RemoveClient(clientID string) {
 	es.mu.Lock()
-	defer es.mu.Unlock()
 
 	client, exists := es.clientManager.getClient(clientID)
 	if !exists {
@@ -64,6 +66,8 @@ func (es *Eventsocket) RemoveClient(clientID string) {
 
 	es.clientManager.removeClient(clientID)
 	deletedRoomIDs, roomsLeftIDs := es.roomManager.disconnectClient(clientID)
+
+	es.mu.Unlock()
 
 	for _, roomID := range roomsLeftIDs {
 		es.triggerLeaveRoom(roomID, clientID)
@@ -80,7 +84,6 @@ func (es *Eventsocket) RemoveClient(clientID string) {
 
 func (es *Eventsocket) AddClientToRoom(roomID string, clientID string) error {
 	es.mu.Lock()
-	defer es.mu.Unlock()
 
 	client, exists := es.clientManager.getClient(clientID)
 	if !exists {
@@ -88,6 +91,8 @@ func (es *Eventsocket) AddClientToRoom(roomID string, clientID string) error {
 	}
 
 	roomCreated := es.roomManager.addClientToRoom(roomID, client)
+
+	es.mu.Unlock()
 
 	if roomCreated {
 		es.triggerNewRoom(roomID)
@@ -237,7 +242,7 @@ func (es *Eventsocket) triggerCreateClient(client *Client) {
 	defer es.mu.RUnlock()
 
 	for _, handler := range es.createClientHandlers {
-		handler(client)
+		go handler(client)
 	}
 }
 
@@ -246,7 +251,7 @@ func (es *Eventsocket) triggerRemoveClient(clientID string) {
 	defer es.mu.RUnlock()
 
 	for _, handler := range es.removeClientHandlers {
-		handler(clientID)
+		go handler(clientID)
 	}
 }
 
@@ -255,7 +260,7 @@ func (es *Eventsocket) triggerJoinRoom(roomID, clientID string) {
 	defer es.mu.RUnlock()
 
 	for _, handler := range es.joinRoomHandlers {
-		handler(roomID, clientID)
+		go handler(roomID, clientID)
 	}
 }
 
@@ -264,7 +269,7 @@ func (es *Eventsocket) triggerLeaveRoom(roomID, clientID string) {
 	defer es.mu.RUnlock()
 
 	for _, handler := range es.leaveRoomHandlers {
-		handler(roomID, clientID)
+		go handler(roomID, clientID)
 	}
 }
 
@@ -273,7 +278,7 @@ func (es *Eventsocket) triggerNewRoom(roomID string) {
 	defer es.mu.RUnlock()
 
 	for _, handler := range es.newRoomHandlers {
-		handler(roomID)
+		go handler(roomID)
 	}
 }
 
@@ -282,6 +287,6 @@ func (es *Eventsocket) triggerDeleteRoom(roomID string) {
 	defer es.mu.RUnlock()
 
 	for _, handler := range es.deleteRoomHandlers {
-		handler(roomID)
+		go handler(roomID)
 	}
 }

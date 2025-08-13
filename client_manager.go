@@ -1,6 +1,8 @@
 package eventsocket
 
-import "sync"
+import (
+	"sync"
+)
 
 type clientManager struct {
 	clients map[string]*Client
