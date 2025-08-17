@@ -5,18 +5,23 @@ import (
 )
 
 type roomManager struct {
-	rooms map[string]*room
-	mu    sync.RWMutex
+	rooms        map[string]*room
+	eventManager *eventManager
+	mu           sync.RWMutex
 }
 
-func newRoomManager() *roomManager {
+type roomManagerConfig struct {
+	eventManager *eventManager
+}
+
+func newRoomManager(cfg *roomManagerConfig) *roomManager {
 	return &roomManager{
-		rooms: make(map[string]*room),
+		rooms:        make(map[string]*room),
+		eventManager: cfg.eventManager,
 	}
 }
 
-// returns true if room was created
-func (rm *roomManager) addClientToRoom(roomID string, client *Client) bool {
+func (rm *roomManager) addClientToRoom(roomID string, client *Client) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
@@ -24,52 +29,46 @@ func (rm *roomManager) addClientToRoom(roomID string, client *Client) bool {
 	if !exists {
 		room = newRoom()
 		rm.rooms[roomID] = room
+		rm.eventManager.triggerNewRoom(roomID)
 	}
 
 	room.addClient(client)
-
-	return !exists
+	rm.eventManager.triggerJoinRoom(roomID, client.ID())
 }
 
-// returns true if room was deleted
-func (rm *roomManager) removeClientFromRoom(roomID string, clientID string) bool {
+func (rm *roomManager) removeClientFromRoom(roomID string, clientID string) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
 	room, exists := rm.rooms[roomID]
 	if !exists {
-		return false
+		return
 	}
 
 	room.removeClient(clientID)
+	rm.eventManager.triggerRemoveClient(clientID)
+
 	if room.size() == 0 {
 		delete(rm.rooms, roomID)
-		return true
+		rm.eventManager.triggerDeleteRoom(roomID)
 	}
-
-	return false
 }
 
-// returns 2 slices. first indicates ids of rooms that were deleted. second indicates rooms that client left as a result of disconnecting
-func (rm *roomManager) disconnectClient(clientID string) ([]string, []string) {
+func (rm *roomManager) disconnectClient(clientID string) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	deletedRooms := make([]string, 0)
-	roomsLeft := make([]string, 0)
 	for id, room := range rm.rooms {
-		wasMember := room.removeClient(clientID)
-		if wasMember {
-			roomsLeft = append(roomsLeft, id)
+		removed := room.removeClient(clientID)
+		if removed {
+			rm.eventManager.triggerLeaveRoom(id, clientID)
 		}
 
 		if room.size() == 0 {
 			delete(rm.rooms, id)
-			deletedRooms = append(deletedRooms, id)
+			rm.eventManager.triggerDeleteRoom(id)
 		}
 	}
-
-	return deletedRooms, roomsLeft
 }
 
 func (rm *roomManager) broadcastToRoom(roomID string, msg Message) error {
