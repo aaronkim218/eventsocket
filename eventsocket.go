@@ -5,27 +5,21 @@ import (
 )
 
 type Eventsocket struct {
-	clientManager        *clientManager
-	roomManager          *roomManager
-	mu                   sync.RWMutex
-	createClientHandlers map[string]CreateClientHandler
-	removeClientHandlers map[string]RemoveClientHandler
-	joinRoomHandlers     map[string]JoinRoomHandler
-	leaveRoomHandlers    map[string]LeaveRoomHandler
-	newRoomHandlers      map[string]NewRoomHandler
-	deleteRoomHandlers   map[string]DeleteRoomHandler
+	clientManager *clientManager
+	roomManager   *roomManager
+	eventManager  *eventManager
+	mu            sync.Mutex
 }
 
 func New() *Eventsocket {
+	em := newEventManager()
+
 	es := &Eventsocket{
-		clientManager:        newClientManager(),
-		roomManager:          newRoomManager(),
-		createClientHandlers: make(map[string]CreateClientHandler),
-		removeClientHandlers: make(map[string]RemoveClientHandler),
-		joinRoomHandlers:     make(map[string]JoinRoomHandler),
-		leaveRoomHandlers:    make(map[string]LeaveRoomHandler),
-		newRoomHandlers:      make(map[string]NewRoomHandler),
-		deleteRoomHandlers:   make(map[string]DeleteRoomHandler),
+		clientManager: newClientManager(),
+		roomManager: newRoomManager(&roomManagerConfig{
+			eventManager: em,
+		}),
+		eventManager: em,
 	}
 
 	return es
@@ -51,7 +45,7 @@ func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) (*Client, error) {
 
 	es.clientManager.addClient(client)
 
-	es.triggerCreateClient(client)
+	es.eventManager.triggerCreateClient(client)
 
 	return client, nil
 }
@@ -65,52 +59,31 @@ func (es *Eventsocket) RemoveClient(clientID string) {
 	}
 
 	es.clientManager.removeClient(clientID)
-	deletedRoomIDs, roomsLeftIDs := es.roomManager.disconnectClient(clientID)
+	es.roomManager.disconnectClient(clientID)
 
 	es.mu.Unlock()
 
-	for _, roomID := range roomsLeftIDs {
-		es.triggerLeaveRoom(roomID, clientID)
-	}
-
-	for _, roomID := range deletedRoomIDs {
-		es.triggerDeleteRoom(roomID)
-	}
-
 	client.disconnect()
 
-	es.triggerRemoveClient(clientID)
+	es.eventManager.triggerRemoveClient(clientID)
 }
 
 func (es *Eventsocket) AddClientToRoom(roomID string, clientID string) error {
 	es.mu.Lock()
+	defer es.mu.Unlock()
 
 	client, exists := es.clientManager.getClient(clientID)
 	if !exists {
 		return ErrClientNotFound
 	}
 
-	roomCreated := es.roomManager.addClientToRoom(roomID, client)
-
-	es.mu.Unlock()
-
-	if roomCreated {
-		es.triggerNewRoom(roomID)
-	}
-
-	es.triggerJoinRoom(roomID, clientID)
+	es.roomManager.addClientToRoom(roomID, client)
 
 	return nil
 }
 
 func (es *Eventsocket) RemoveClientFromRoom(roomID string, clientID string) {
-	roomDeleted := es.roomManager.removeClientFromRoom(roomID, clientID)
-
-	es.triggerLeaveRoom(roomID, clientID)
-
-	if roomDeleted {
-		es.triggerDeleteRoom(roomID)
-	}
+	es.roomManager.removeClientFromRoom(roomID, clientID)
 }
 
 func (es *Eventsocket) BroadcastToAll(msg Message) {
@@ -130,163 +103,49 @@ func (es *Eventsocket) BroadcastToClient(clientID string, msg Message) error {
 }
 
 func (es *Eventsocket) OnCreateClient(name string, handler CreateClientHandler) {
-	if handler == nil {
-		return
-	}
-
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	es.createClientHandlers[name] = handler
+	es.eventManager.onCreateClient(name, handler)
 }
 
 func (es *Eventsocket) OnRemoveClient(name string, handler RemoveClientHandler) {
-	if handler == nil {
-		return
-	}
-
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	es.removeClientHandlers[name] = handler
+	es.eventManager.onRemoveClient(name, handler)
 }
 
 func (es *Eventsocket) OnJoinRoom(name string, handler JoinRoomHandler) {
-	if handler == nil {
-		return
-	}
-
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	es.joinRoomHandlers[name] = handler
+	es.eventManager.onJoinRoom(name, handler)
 }
 
 func (es *Eventsocket) OnLeaveRoom(name string, handler LeaveRoomHandler) {
-	if handler == nil {
-		return
-	}
-
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	es.leaveRoomHandlers[name] = handler
+	es.eventManager.onLeaveRoom(name, handler)
 }
 
 func (es *Eventsocket) OnNewRoom(name string, handler NewRoomHandler) {
-	if handler == nil {
-		return
-	}
-
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	es.newRoomHandlers[name] = handler
+	es.eventManager.onNewRoom(name, handler)
 }
 
 func (es *Eventsocket) OnDeleteRoom(name string, handler DeleteRoomHandler) {
-	if handler == nil {
-		return
-	}
-
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	es.deleteRoomHandlers[name] = handler
+	es.eventManager.onDeleteRoom(name, handler)
 }
 
 func (es *Eventsocket) OffCreateClient(name string) {
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	delete(es.createClientHandlers, name)
+	es.eventManager.offCreateClient(name)
 }
 
 func (es *Eventsocket) OffRemoveClient(name string) {
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	delete(es.removeClientHandlers, name)
+	es.eventManager.offRemoveClient(name)
 }
 
 func (es *Eventsocket) OffJoinRoom(name string) {
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	delete(es.joinRoomHandlers, name)
+	es.eventManager.offJoinRoom(name)
 }
 
 func (es *Eventsocket) OffLeaveRoom(name string) {
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	delete(es.leaveRoomHandlers, name)
+	es.eventManager.offLeaveRoom(name)
 }
 
 func (es *Eventsocket) OffNewRoom(name string) {
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	delete(es.newRoomHandlers, name)
+	es.eventManager.offNewRoom(name)
 }
 
 func (es *Eventsocket) OffDeleteRoom(name string) {
-	es.mu.Lock()
-	defer es.mu.Unlock()
-
-	delete(es.deleteRoomHandlers, name)
-}
-
-func (es *Eventsocket) triggerCreateClient(client *Client) {
-	es.mu.RLock()
-	defer es.mu.RUnlock()
-
-	for _, handler := range es.createClientHandlers {
-		go handler(client)
-	}
-}
-
-func (es *Eventsocket) triggerRemoveClient(clientID string) {
-	es.mu.RLock()
-	defer es.mu.RUnlock()
-
-	for _, handler := range es.removeClientHandlers {
-		go handler(clientID)
-	}
-}
-
-func (es *Eventsocket) triggerJoinRoom(roomID, clientID string) {
-	es.mu.RLock()
-	defer es.mu.RUnlock()
-
-	for _, handler := range es.joinRoomHandlers {
-		go handler(roomID, clientID)
-	}
-}
-
-func (es *Eventsocket) triggerLeaveRoom(roomID, clientID string) {
-	es.mu.RLock()
-	defer es.mu.RUnlock()
-
-	for _, handler := range es.leaveRoomHandlers {
-		go handler(roomID, clientID)
-	}
-}
-
-func (es *Eventsocket) triggerNewRoom(roomID string) {
-	es.mu.RLock()
-	defer es.mu.RUnlock()
-
-	for _, handler := range es.newRoomHandlers {
-		go handler(roomID)
-	}
-}
-
-func (es *Eventsocket) triggerDeleteRoom(roomID string) {
-	es.mu.RLock()
-	defer es.mu.RUnlock()
-
-	for _, handler := range es.deleteRoomHandlers {
-		go handler(roomID)
-	}
+	es.eventManager.offDeleteRoom(name)
 }
