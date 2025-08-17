@@ -51,17 +51,10 @@ func (es *Eventsocket) CreateClient(cfg *CreateClientConfig) (*Client, error) {
 }
 
 func (es *Eventsocket) RemoveClient(clientID string) {
-	es.mu.Lock()
-
-	client, exists := es.clientManager.getClient(clientID)
-	if !exists {
+	client, err := es.getAndRemoveClient(clientID)
+	if err != nil {
 		return
 	}
-
-	es.clientManager.removeClient(clientID)
-	es.roomManager.disconnectClient(clientID)
-
-	es.mu.Unlock()
 
 	client.disconnect()
 
@@ -148,4 +141,19 @@ func (es *Eventsocket) OffNewRoom(name string) {
 
 func (es *Eventsocket) OffDeleteRoom(name string) {
 	es.eventManager.offDeleteRoom(name)
+}
+
+func (es *Eventsocket) getAndRemoveClient(clientID string) (*Client, error) {
+	es.mu.Lock()
+	defer es.mu.Unlock()
+
+	client, exists := es.clientManager.getClient(clientID)
+	if !exists {
+		return nil, ErrClientNotFound
+	}
+
+	es.clientManager.removeClient(clientID)
+	es.roomManager.disconnectClient(clientID)
+
+	return client, nil
 }

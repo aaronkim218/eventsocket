@@ -59,6 +59,7 @@ func (c *Client) sendMessage(msg Message) {
 	}
 }
 
+// should only be called by eventsocket
 func (c *Client) disconnect() {
 	c.once.Do((func() {
 		c.mu.Lock()
